@@ -1,0 +1,48 @@
+import paho.mqtt.client as mqtt
+import boto3
+
+# Global variable to track time
+sms_sent = False
+
+# MQTT Callbacks
+def on_connect(client, userdata, flags, rc):
+    print(f"Connected with result code {str(rc)}")
+    client.subscribe("plantgrow")
+
+def on_message(client, userdata, msg):
+    payload = msg.payload.decode('utf-8')
+    print(f"Received message: {payload}")
+
+    # Check if soil moisture is below 20
+    if "Soil_is_dry" in payload:
+        sms_sent = True
+        send_sms_alert("Soil is dry out. Starting water pump")
+        
+    if "Sun_light_Bright" in payload:
+        sms_sent = True
+        send_sms_alert("Sun Light is strong, water motor will work more half miunte")
+        
+    if "Sun_light_Very_bright" in payload:
+        sms_sent = True
+        send_sms_alert("Sun Light is evry trong, water motor will work one more miunte")
+
+    if "Weather_is_hot" in payload:
+        sms_sent = True
+        send_sms_alert("Weather is hot, drink more water for your plant please")
+    
+
+def send_sms_alert(msg):
+    # Use AWS SDK (Boto3) to send SMS via Amazon SNS
+    sns = boto3.client('sns', region_name="ap-southeast-2")  # Replace with your AWS region
+    response = sns.publish(
+        PhoneNumber='+61432473966',  # Replace with your phone number in E.164 format
+        Message=msg,
+    )
+    print("Alert sent!")
+
+# MQTT Setup
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect("3.27.74.241", 1883, 60)  # Connect to the local MQTT broker running on your EC2 instance
+client.loop_forever()
